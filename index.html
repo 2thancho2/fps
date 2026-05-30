@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIVALS 3D - 1VS1 MULTI (P2P)</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+        body, html { width: 100%; height: 100%; overflow: hidden; font-family: 'Malgun Gothic', sans-serif; background: #0b0f19; color: #fff; }
+        
+        #game-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+
+        .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; display: flex; justify-content: center; align-items: center; pointer-events: none; }
+        .interactive { pointer-events: auto; }
+
+        .screen { background: rgba(15, 15, 15, 0.95); padding: 40px; border-radius: 8px; border: 3px solid #333; width: 450px; text-align: center; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
+        .screen h2 { margin-bottom: 25px; font-size: 32px; font-weight: 900; letter-spacing: 1px; color: #fff; }
+        .status-text { font-size: 16px; color: #ffea00; margin-bottom: 20px; line-height: 1.6; font-weight: bold; }
+        
+        button { width: 100%; padding: 15px; background: #00e676; border: none; color: #000; font-size: 18px; font-weight: 900; border-radius: 4px; cursor: pointer; transition: 0.15s; }
+        button:hover { background: #00c853; transform: scale(1.02); }
+
+        #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; flex-direction: column; justify-content: space-between; padding: 25px; pointer-events: none; }
+        .top-hud { display: flex; justify-content: space-between; width: 100%; align-items: center; }
+        .score-board { background: rgba(0,0,0,0.75); padding: 12px 30px; border-radius: 4px; font-size: 24px; font-weight: 900; text-align: center; border: 2px solid #444; min-width: 220px; }
+        .team-a-score { color: #ff3547; }
+        .team-b-score { color: #007bff; }
+        .status-box { background: rgba(0,0,0,0.75); padding: 12px 20px; border-radius: 4px; font-size: 16px; font-weight: bold; border: 1px solid #444; }
+
+        .crosshair-container { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; width: 20px; height: 20px; display: flex; justify-content: center; align-items: center; }
+        .crosshair-dot { width: 4px; height: 4px; background: #00ff00; border-radius: 50%; }
+        .crosshair-line { position: absolute; background: #00ff00; }
+        .ch-v { width: 2px; height: 14px; }
+        .ch-h { width: 14px; height: 2px; }
+
+        .bottom-hud { display: flex; justify-content: space-between; width: 100%; align-items: flex-end; }
+        .hp-bar-container { background: #333; width: 250px; height: 25px; border-radius: 4px; border: 2px solid #555; overflow: hidden; position: relative; }
+        .hp-bar-fill { background: #00e676; width: 100%; height: 100%; transition: width 0.1s ease; }
+        .hp-text { position: absolute; width: 100%; text-align: center; top: 0; left: 0; font-size: 14px; font-weight: 900; line-height: 21px; color: #fff; text-shadow: 1px 1px 2px #000; }
+
+        .center-msg { position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%); font-size: 32px; font-weight: 900; text-shadow: 3px 3px 6px #000; text-align: center; display: none; color: #ffea00; letter-spacing: 1px; white-space: pre-line; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+</head>
+<body>
+
+    <div id="game-container"></div>
+
+    <div class="ui-layer">
+        <div id="login-screen" class="screen interactive">
+            <h2>RIVALS 3D</h2>
+            <p class="status-text" id="connection-status">시그널링 서버 연결 중...</p>
+            <div id="action-area"></div>
+        </div>
+
+        <div id="gameover-screen" class="screen interactive" style="display: none;">
+            <h2 id="match-result-title">MATCH OVER</h2>
+            <p id="match-result-sub" style="margin-bottom: 25px; color:#ccc; line-height:1.5;"></p>
+            <button id="restart-btn" style="background: #00e676; margin-bottom: 12px;">PLAY AGAIN</button>
+        </div>
+
+        <div id="hud">
+            <div class="top-hud">
+                <div class="status-box" id="hud-role">1 VS 1 MULTI</div>
+                <div class="score-board">
+                    <span class="team-a-score">YOU</span> <span id="score-my">0</span> : <span id="score-target">0</span> <span class="team-b-score">ENEMY</span>
+                </div>
+                <div class="status-box" style="color: #00e676;">CONNECTED</div>
+            </div>
+            
+            <div class="crosshair-container">
+                <div class="crosshair-line ch-v"></div>
+                <div class="crosshair-line ch-h"></div>
+                <div class="crosshair-dot"></div>
+            </div>
+
+            <div class="bottom-hud">
+                <div>
+                    <p style="font-size:12px; font-weight:bold; margin-bottom:4px; color:#aaa;">HEALTH BAR</p>
+                    <div class="hp-bar-container">
+                        <div id="hp-fill" class="hp-bar-fill"></div>
+                        <div id="hud-hp-text" class="hp-text">100 / 100</div>
+                    </div>
+                </div>
+                <div class="status-box" style="background: rgba(0,0,0,0.5); border:none; font-size: 13px; color: #bbb; text-align: right; line-height:1.4;">
+                    [W,A,S,D] Move &nbsp;&nbsp; [Space] Jump<br>[Mouse] Look Around &nbsp;&nbsp; [Left Click] Shoot Gun
+                </div>
+            </div>
+        </div>
+
+        <div id="center-message" class="center-msg"></div>
+    </div>
+
+    <script>
+        window.addEventListener('load', () => {
+            // ?1 매개변수로 플레이어 진영 구분
+            const isHost = window.location.search.includes('1');
+            
+            // 다른 사용자와 방이 중복되는 현상을 방지하기 위한 고유 키값 생성
+            const uniquePrefix = 'chidong-rivals-match-key-';
+            const myId = isHost ? uniquePrefix + 'p1' : uniquePrefix + 'p2';
+            const targetId = isHost ? uniquePrefix + 'p2' : uniquePrefix + 'p1';
+
+            let peer = null;
+            let conn = null;
+
+            let gameState = {
+                isGaming: false,
+                myHp: 100,
+                myScore: 0,
+                targetScore: 0,
+                me: { x: 0, y: 0, z: 15, vy: 0, yaw: Math.PI, pitch: 0, isGrounded: true },
+                target: { x: 0, y: 0, z: -15, yaw: 0, pitch: 0, isAlive: true, mesh: null, parts: {} }
+            };
+
+            let scene, camera, renderer;
+            let mapObjects = []; 
+            let bullets = [];
+            let keys = {};
+            let lastTime = 0;
+            let container = document.getElementById('game-container');
+
+            const GRAVITY = 32.0;
+            const JUMP_FORCE = 12.0;
+
+            const loginScreen = document.getElementById('login-screen');
+            const gameoverScreen = document.getElementById('gameover-screen');
+            const hud = document.getElementById('hud');
+            const centerMsg = document.getElementById('center-message');
+            const statusText = document.getElementById('connection-status');
+            const actionArea = document.getElementById('action-area');
+
+            peer = new Peer(myId);
+
+            peer.on('open', () => {
+                if (isHost) {
+                    statusText.innerHTML = "당신은 [1번 플레이어] 입니다.<br><br>2번 플레이어의 접속을 대기하고 있습니다...";
+                    document.getElementById('hud-role').innerText = "PLAYER 1 (RED)";
+                } else {
+                    statusText.innerHTML = "당신은 [2번 플레이어] 입니다.<br><br>아래 버튼을 클릭하여 즉시 대전에 입장하세요.";
+                    document.getElementById('hud-role').innerText = "PLAYER 2 (BLUE)";
+                    
+                    actionArea.innerHTML = `<button id="auto-connect-btn">대전에 참여하기</button>`;
+                    document.getElementById('auto-connect-btn').addEventListener('click', () => {
+                        statusText.innerText = "1번 플레이어에게 P2P 채널 연결 중...";
+                        conn = peer.connect(targetId);
+                        setupConnection();
+                    });
+                }
+            });
+
+            peer.on('connection', (connection) => {
+                conn = connection;
+                setupConnection();
+            });
+
+            function setupConnection() {
+                conn.on('open', () => {
+                    loginScreen.style.display = 'none';
+                    hud.style.display = 'flex';
+                    showCenterMessage("매칭에 성공했습니다!\n잠시 후 라운드가 시작됩니다.", 2000);
+                    setTimeout(initThreeEngine, 2000);
+                });
+
+                conn.on('data', (data) => {
+                    if (data.type === 'move') {
+                        gameState.target.x = data.x;
+                        gameState.target.y = data.y;
+                        gameState.target.z = data.z;
+                        gameState.target.yaw = data.yaw;
+                    } 
+                    else if (data.type === 'shoot') {
+                        spawnTargetBullet(data.bx, data.by, data.bz, data.vx, data.vy, data.vz);
+                    }
+                    else if (data.type === 'hit') {
+                        gameState.myHp -= 25;
+                        updateHud();
+                        if (gameState.myHp <= 0) {
+                            gameState.isGaming = false;
+                            document.exitPointerLock();
+                            conn.send({ type: 'i-died' });
+                            settleRound(false);
+                        }
+                    }
+                    else if (data.type === 'i-died') {
+                        gameState.isGaming = false;
+                        document.exitPointerLock();
+                        settleRound(true);
+                    }
+                    else if (data.type === 'restart') {
+                        resetGameNextRound();
+                    }
+                });
+
+                conn.on('close', () => {
+                    alert("상대방과의 대전 연결이 유실되었습니다.");
+                    location.reload();
+                });
+            }
+
+            function showCenterMessage(txt, duration) {
+                centerMsg.innerText = txt;
+                centerMsg.style.display = 'block';
+                if(duration) setTimeout(() => { centerMsg.style.display = 'none'; }, duration);
+            }
+
+            function initThreeEngine() {
+                gameState.isGaming = true;
+
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x0b0f19);
+                scene.fog = new THREE.FogExp2(0x0b0f19, 0.015);
+
+                camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                container.appendChild(renderer.domElement);
+
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+                scene.add(ambientLight);
+
+                const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+                dirLight.position.set(30, 50, 20);
+                scene.add(dirLight);
+
+                const floorGeo = new THREE.BoxGeometry(80, 0.2, 80);
+                const floorMat = new THREE.MeshStandardMaterial({ color: 0x1f2d3d, roughness: 0.5 });
+                const floor = new THREE.Mesh(floorGeo, floorMat);
+                floor.position.y = -0.1;
+                scene.add(floor);
+
+                const grid = new THREE.GridHelper(80, 40, 0x00e676, 0x445566);
+                grid.position.y = 0.01;
+                scene.add(grid);
+
+                createMapStructures();
+                createEnemyMesh();
+
+                resetRoundSettings();
+
+                window.addEventListener('keydown', e => { 
+                    keys[e.code] = true; 
+                    if(e.code === 'Space') {
+                        if(gameState.isGaming && gameState.myHp > 0 && gameState.me.isGrounded) {
+                            gameState.me.vy = JUMP_FORCE;
+                            gameState.me.isGrounded = false;
+                        }
+                    }
+                });
+                window.addEventListener('keyup', e => { keys[e.code] = false; });
+                window.addEventListener('mousemove', onMouseMovement);
+                window.addEventListener('click', onGunFire);
+
+                window.addEventListener('resize', () => {
+                    camera.aspect = window.innerWidth / window.innerHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                });
+
+                container.addEventListener('click', () => {
+                    if(gameState.isGaming) container.requestPointerLock();
+                });
+
+                lastTime = performance.now();
+                requestAnimationFrame(renderLoop);
+            }
+
+            function createMapStructures() {
+                mapObjects = [];
+                const structures = [
+                    { x: -12, z: -5, sx: 4, sy: 8, sz: 4, c: 0x556688 },
+                    { x: 12, z: 5, sx: 4, sy: 8, sz: 4, c: 0x667777 },
+                    { x: -15, z: 15, sx: 5, sy: 6, sz: 5, c: 0x555555 },
+                    { x: 15, z: -15, sx: 5, sy: 6, sz: 5, c: 0x555555 }
+                ];
+                structures.forEach(s => {
+                    const geo = new THREE.BoxGeometry(s.sx, s.sy, s.sz);
+                    const mat = new THREE.MeshStandardMaterial({ color: s.c, roughness: 0.5 });
+                    const mesh = new THREE.Mesh(geo, mat);
+                    mesh.position.set(s.x, s.sy/2, s.z);
+                    scene.add(mesh);
+                    mapObjects.push({ x: s.x, z: s.z, hx: s.sx/2, hz: s.sz/2, sy: s.sy });
+                });
+            }
+
+            function createEnemyMesh() {
+                let enemyColor = isHost ? 0x007bff : 0xff3547; 
+
+                const group = new THREE.Group();
+                const bodyGeo = new THREE.BoxGeometry(0.8, 1.2, 0.4);
+                const bodyMat = new THREE.MeshStandardMaterial({ color: enemyColor, roughness: 0.6 });
+                const body = new THREE.Mesh(bodyGeo, bodyMat);
+                body.position.y = 1.3;
+                group.add(body);
+
+                const headGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
+                const headMat = new THREE.MeshStandardMaterial({ color: 0xffd1a4, roughness: 0.6 });
+                const head = new THREE.Mesh(headGeo, headMat);
+                head.position.y = 2.2;
+                group.add(head);
+
+                const legGeo = new THREE.BoxGeometry(0.24, 1.0, 0.3);
+                const legMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+
+                const leftLeg = new THREE.Mesh(legGeo, legMat); leftLeg.position.set(-0.22, 0.5, 0); group.add(leftLeg);
+                const rightLeg = new THREE.Mesh(legGeo, legMat); rightLeg.position.set(0.22, 0.5, 0); group.add(rightLeg);
+                gameState.target.parts.leftLeg = leftLeg;
+                gameState.target.parts.rightLeg = rightLeg;
+
+                scene.add(group);
+                gameState.target.mesh = group;
+            }
+
+            function checkWallCollision(nextX, nextZ) {
+                const pr = 0.4; 
+                for(let i=0; i<mapObjects.length; i++) {
+                    let obj = mapObjects[i];
+                    if (nextX + pr > obj.x - obj.hx && nextX - pr < obj.x + obj.hx &&
+                        nextZ + pr > obj.z - obj.hz && nextZ - pr < obj.z + obj.hz) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            function resetRoundSettings() {
+                centerMsg.style.display = 'none';
+                gameState.myHp = 100;
+                gameState.target.isAlive = true;
+                if(gameState.target.mesh) gameState.target.mesh.visible = true;
+
+                bullets.forEach(b => scene.remove(b.mesh));
+                bullets = [];
+                updateHud();
+
+                if (isHost) {
+                    gameState.me.x = 0; gameState.me.y = 0; gameState.me.z = 20; gameState.me.yaw = Math.PI;
+                } else {
+                    gameState.me.x = 0; gameState.me.y = 0; gameState.me.z = -20; gameState.me.yaw = 0;
+                }
+                gameState.me.vy = 0; gameState.me.isGrounded = true;
+            }
+
+            function onMouseMovement(e) {
+                if (document.pointerLockElement !== container || !gameState.isGaming || gameState.myHp <= 0) return;
+                gameState.me.yaw -= e.movementX * 0.003;
+                gameState.me.pitch -= e.movementY * 0.003;
+                gameState.me.pitch = Math.max(-Math.PI/4, Math.min(Math.PI/4, gameState.me.pitch));
+            }
+
+            function onGunFire() {
+                if(!gameState.isGaming || gameState.myHp <= 0 || document.pointerLockElement !== container) return;
+
+                let vx = Math.cos(gameState.me.pitch) * Math.sin(gameState.me.yaw) * 55;
+                let vy = Math.sin(gameState.me.pitch) * 55;
+                let vz = Math.cos(gameState.me.pitch) * Math.cos(gameState.me.yaw) * 55;
+
+                let bx = gameState.me.x;
+                let by = gameState.me.y + 1.4;
+                let bz = gameState.me.z;
+
+                const bulletGeo = new THREE.SphereGeometry(0.18, 8, 8);
+                const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffea00 });
+                const bulletMesh = new THREE.Mesh(bulletGeo, bulletMat);
+                bulletMesh.position.set(bx, by, bz);
+                scene.add(bulletMesh);
+
+                bullets.push({ mesh: bulletMesh, x: bx, y: by, z: bz, vx: vx, vy: vy, vz: vz, isMine: true });
+                conn.send({ type: 'shoot', bx: bx, by: by, bz: bz, vx: vx, vy: vy, vz: vz });
+            }
+
+            function spawnTargetBullet(bx, by, bz, vx, vy, vz) {
+                const bulletGeo = new THREE.SphereGeometry(0.18, 8, 8);
+                const bulletMat = new THREE.MeshBasicMaterial({ color: 0xff3547 });
+                const bulletMesh = new THREE.Mesh(bulletGeo, bulletMat);
+                bulletMesh.position.set(bx, by, bz);
+                scene.add(bulletMesh);
+
+                bullets.push({ mesh: bulletMesh, x: bx, y: by, z: bz, vx: vx, vy: vy, vz: vz, isMine: false });
+            }
+
+            function renderLoop(now) {
+                if(!gameState.isGaming) return;
+                requestAnimationFrame(renderLoop);
+
+                let dt = (now - lastTime) / 1000;
+                lastTime = now;
+                if(dt > 0.1) dt = 0.1;
+
+                if (gameState.myHp > 0) {
+                    let moveSpeed = 13 * dt;
+                    let fx = Math.sin(gameState.me.yaw); let fz = Math.cos(gameState.me.yaw); 
+                    let rx = -Math.cos(gameState.me.yaw); let rz = Math.sin(gameState.me.yaw); 
+
+                    let nextX = gameState.me.x; let nextZ = gameState.me.z;
+
+                    if (keys['KeyW']) { nextX += fx * moveSpeed; nextZ += fz * moveSpeed; }
+                    if (keys['KeyS']) { nextX -= fx * moveSpeed; nextZ -= fz * moveSpeed; }
+                    if (keys['KeyA']) { nextX -= rx * moveSpeed; nextZ -= rz * moveSpeed; }
+                    if (keys['KeyD']) { nextX += rx * moveSpeed; nextZ += rz * moveSpeed; }
+
+                    nextX = Math.max(-38, Math.min(38, nextX));
+                    nextZ = Math.max(-38, Math.min(38, nextZ));
+
+                    if (!checkWallCollision(nextX, nextZ)) {
+                        gameState.me.x = nextX; gameState.me.z = nextZ;
+                    }
+
+                    if (!gameState.me.isGrounded) {
+                        gameState.me.vy -= GRAVITY * dt; 
+                        gameState.me.y += gameState.me.vy * dt;
+                        if (gameState.me.y <= 0) { gameState.me.y = 0; gameState.me.vy = 0; gameState.me.isGrounded = true; }
+                    }
+
+                    conn.send({
+                        type: 'move',
+                        x: gameState.me.x, y: gameState.me.y, z: gameState.me.z,
+                        yaw: gameState.me.yaw
+                    });
+                }
+
+                if(gameState.target.mesh && gameState.target.isAlive) {
+                    gameState.target.mesh.position.set(gameState.target.x, gameState.target.y, gameState.target.z);
+                    gameState.target.mesh.rotation.y = gameState.target.yaw;
+                }
+
+                for (let i = bullets.length - 1; i >= 0; i--) {
+                    let b = bullets[i];
+                    b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt;
+                    b.mesh.position.set(b.x, b.y, b.z);
+
+                    if (Math.abs(b.x) > 40 || Math.abs(b.z) > 40 || b.y < 0 || b.y > 25) { 
+                        scene.remove(b.mesh); bullets.splice(i, 1); continue; 
+                    }
+
+                    if (b.isMine && gameState.target.isAlive) {
+                        let tx = gameState.target.x; let ty = gameState.target.y; let tz = gameState.target.z;
+                        if (Math.abs(tx - b.x) < 0.9 && Math.abs(tz - b.z) < 0.9 && b.y > ty && b.y < ty + 2.4) {
+                            scene.remove(b.mesh);
+                            bullets.splice(i, 1);
+                            conn.send({ type: 'hit' });
+                            continue;
+                        }
+                    }
+                }
+
+                let camDist = 5.5; 
+                let targetCamX = gameState.me.x - Math.cos(gameState.me.pitch) * Math.sin(gameState.me.yaw) * camDist;
+                let targetCamY = (gameState.me.y + 3.2) - Math.sin(gameState.me.pitch) * camDist; 
+                let targetCamZ = gameState.me.z - Math.cos(gameState.me.pitch) * Math.cos(gameState.me.yaw) * camDist;
+
+                camera.position.set(targetCamX, targetCamY, targetCamZ);
+                camera.lookAt(gameState.me.x, gameState.me.y + 1.5, gameState.me.z);
+
+                renderer.render(scene, camera);
+            }
+
+            function settleRound(isWin) {
+                if (isWin) {
+                    gameState.myScore++;
+                    showCenterMessage("ROUND VICTORY!", 3000);
+                } else {
+                    gameState.targetScore++;
+                    showCenterMessage("ROUND DEFEAT...", 3000);
+                    if(gameState.target.mesh) gameState.target.mesh.visible = false;
+                }
+                updateHud();
+
+                setTimeout(() => {
+                    hud.style.display = 'none';
+                    gameoverScreen.style.display = 'block';
+                    document.getElementById('match-result-title').innerText = isWin ? "YOU WIN" : "YOU LOSE";
+                    document.getElementById('match-result-sub').innerText = `SCORE\nYOU [ ${gameState.myScore} ]  vs  [ ${gameState.targetScore} ] ENEMY`;
+                }, 2000);
+            }
+
+            function resetGameNextRound() {
+                gameoverScreen.style.display = 'none';
+                hud.style.display = 'flex';
+                resetRoundSettings();
+                gameState.isGaming = true;
+                lastTime = performance.now();
+                requestAnimationFrame(renderLoop);
+            }
+
+            document.getElementById('restart-btn').addEventListener('click', () => {
+                conn.send({ type: 'restart' }); 
+                resetGameNextRound();
+            });
+
+            function updateHud() {
+                document.getElementById('score-my').innerText = gameState.myScore;
+                document.getElementById('score-target').innerText = gameState.targetScore;
+                let hpPercent = Math.max(0, gameState.myHp);
+                document.getElementById('hp-fill').style.width = `${hpPercent}%`;
+                document.getElementById('hud-hp-text').innerText = `${hpPercent} / 100`;
+            }
+        });
+    </script>
+</body>
+</html>
