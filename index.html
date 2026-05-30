@@ -2,29 +2,75 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>beck.io</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-select: none; }
         body, html { width: 100%; height: 100%; overflow: hidden; font-family: 'Malgun Gothic', sans-serif; background: #0b0f19; color: #fff; }
-        
+
+        /* ── 인트로 스플래시 ── */
+        #splash-screen {
+            position: fixed; inset: 0; z-index: 9999;
+            background: #0b0f19;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.6s ease;
+        }
+        #splash-screen.fade-out { opacity: 0; pointer-events: none; }
+        .splash-title {
+            font-size: 64px; font-weight: 900; letter-spacing: 4px;
+            color: #00e676;
+            text-shadow: 0 0 30px rgba(0,230,118,0.6), 0 0 60px rgba(0,230,118,0.3);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        .splash-made {
+            margin-top: 18px; font-size: 16px; font-weight: 700; letter-spacing: 6px;
+            color: #aaa;
+        }
+        .splash-made span { color: #00e676; }
+        .splash-bar-wrap {
+            margin-top: 40px; width: 200px; height: 4px;
+            background: #222; border-radius: 4px; overflow: hidden;
+        }
+        .splash-bar {
+            height: 100%; width: 0%; background: #00e676;
+            animation: load-bar 1.8s ease forwards;
+        }
+        @keyframes pulse {
+            0%,100% { text-shadow: 0 0 30px rgba(0,230,118,0.6); }
+            50% { text-shadow: 0 0 60px rgba(0,230,118,1), 0 0 100px rgba(0,230,118,0.5); }
+        }
+        @keyframes load-bar { 0%{width:0%} 100%{width:100%} }
+
+        /* ── 가로모드 강제 안내 ── */
+        #rotate-notice {
+            display: none;
+            position: fixed; inset: 0; z-index: 10000;
+            background: #0b0f19; color: #fff;
+            flex-direction: column; justify-content: center; align-items: center;
+            font-size: 22px; font-weight: 900; gap: 16px;
+        }
+        #rotate-notice .rot-icon { font-size: 52px; animation: rot-anim 1.5s ease-in-out infinite; }
+        @keyframes rot-anim { 0%,100%{transform:rotate(0deg)} 50%{transform:rotate(90deg)} }
+        @media (orientation: portrait) and (max-width: 900px) {
+            #rotate-notice { display: flex !important; }
+        }
+
         #game-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
 
         .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; display: flex; justify-content: center; align-items: center; pointer-events: none; }
         .interactive { pointer-events: auto; }
 
-        .screen { background: rgba(15, 15, 15, 0.95); padding: 40px; border-radius: 8px; border: 3px solid #333; width: 450px; text-align: center; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
+        .screen { background: rgba(15,15,15,0.95); padding: 40px; border-radius: 8px; border: 3px solid #333; width: 450px; text-align: center; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
         .screen h2 { margin-bottom: 25px; font-size: 32px; font-weight: 900; letter-spacing: 1px; color: #fff; }
         input[type="text"] { width: 100%; padding: 14px; margin-bottom: 20px; border: 2px solid #555; background: #222; color: #fff; font-size: 18px; border-radius: 4px; text-align: center; font-weight: bold; }
-        
         button { width: 100%; padding: 15px; background: #00e676; border: none; color: #000; font-size: 18px; font-weight: 900; border-radius: 4px; cursor: pointer; transition: 0.15s; }
         button:hover { background: #00c853; transform: scale(1.02); }
-        
+
         .lobby-info { margin-top: 20px; text-align: left; background: #1a1a1a; padding: 15px; border-radius: 4px; border: 1px solid #444; }
         .team-container { display: flex; justify-content: space-between; margin-top: 15px; }
         .team-box { width: 48%; padding: 10px; border-radius: 4px; min-height: 120px; border: 2px solid #333; }
-        .team-A { background: rgba(255, 53, 71, 0.15); border-color: #ff3547; }
-        .team-B { background: rgba(0, 123, 255, 0.15); border-color: #007bff; }
+        .team-A { background: rgba(255,53,71,0.15); border-color: #ff3547; }
+        .team-B { background: rgba(0,123,255,0.15); border-color: #007bff; }
         .team-title { font-weight: 900; margin-bottom: 10px; text-align: center; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 5px; font-size: 16px; }
         .player-item { font-size: 14px; margin: 6px 0; display: flex; justify-content: space-between; font-weight: bold; }
 
@@ -35,7 +81,7 @@
         .team-b-score { color: #007bff; }
         .status-box { background: rgba(0,0,0,0.75); padding: 12px 20px; border-radius: 4px; font-size: 16px; font-weight: bold; border: 1px solid #444; }
 
-        .crosshair-container { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; width: 20px; height: 20px; display: flex; justify-content: center; align-items: center; }
+        .crosshair-container { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); pointer-events: none; width: 20px; height: 20px; display: flex; justify-content: center; align-items: center; }
         .crosshair-dot { width: 4px; height: 4px; background: #00ff00; border-radius: 50%; }
         .crosshair-line { position: absolute; background: #00ff00; }
         .ch-v { width: 2px; height: 14px; }
@@ -46,22 +92,95 @@
         .hp-bar-fill { background: #00e676; width: 100%; height: 100%; transition: width 0.1s ease; }
         .hp-text { position: absolute; width: 100%; text-align: center; top: 0; left: 0; font-size: 14px; font-weight: 900; line-height: 21px; color: #fff; text-shadow: 1px 1px 2px #000; }
 
-        .center-msg { position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%); font-size: 32px; font-weight: 900; text-shadow: 3px 3px 6px #000; text-align: center; display: none; color: #ffea00; letter-spacing: 1px; white-space: pre-line; }
+        .center-msg { position: absolute; top: 35%; left: 50%; transform: translate(-50%,-50%); font-size: 32px; font-weight: 900; text-shadow: 3px 3px 6px #000; text-align: center; display: none; color: #ffea00; letter-spacing: 1px; white-space: pre-line; }
+
+        /* ── 모바일 컨트롤 ── */
+        #mobile-controls {
+            display: none;
+            position: fixed; bottom: 0; left: 0; width: 100%; height: 180px;
+            z-index: 20; pointer-events: none;
+        }
+        /* 조이스틱 */
+        #joystick-zone {
+            position: absolute; bottom: 20px; left: 20px;
+            width: 140px; height: 140px;
+            pointer-events: auto;
+        }
+        #joystick-base {
+            width: 140px; height: 140px; border-radius: 50%;
+            background: rgba(255,255,255,0.08);
+            border: 3px solid rgba(255,255,255,0.25);
+            position: relative;
+        }
+        #joystick-thumb {
+            width: 56px; height: 56px; border-radius: 50%;
+            background: rgba(0,230,118,0.55);
+            border: 3px solid #00e676;
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%,-50%);
+            pointer-events: none;
+            transition: transform 0.05s;
+        }
+        /* 오른쪽 버튼들 */
+        #right-btn-zone {
+            position: absolute; bottom: 20px; right: 20px;
+            display: flex; flex-direction: column; gap: 14px;
+            pointer-events: auto; align-items: center;
+        }
+        .m-btn {
+            width: 76px; height: 76px; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 13px; font-weight: 900; color: #fff;
+            border: 3px solid rgba(255,255,255,0.35);
+            -webkit-tap-highlight-color: transparent;
+            touch-action: none;
+        }
+        #btn-fire {
+            background: rgba(255,53,71,0.5);
+            border-color: #ff3547;
+            font-size: 15px;
+        }
+        #btn-jump {
+            background: rgba(0,230,118,0.35);
+            border-color: #00e676;
+        }
+        /* 카메라 터치 영역 (오른쪽 절반) */
+        #cam-zone {
+            position: fixed;
+            top: 0; right: 0;
+            width: 55%; height: calc(100% - 180px);
+            z-index: 19;
+            pointer-events: auto;
+            /* 디버그용: background: rgba(255,0,0,0.05); */
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
+    <!-- 인트로 스플래시 -->
+    <div id="splash-screen">
+        <div class="splash-title">BECK.IO</div>
+        <div class="splash-made">MADE BY <span>2THAN</span></div>
+        <div class="splash-bar-wrap"><div class="splash-bar"></div></div>
+    </div>
+
+    <!-- 가로모드 안내 -->
+    <div id="rotate-notice">
+        <div class="rot-icon">📱</div>
+        <div>화면을 가로로 돌려주세요</div>
+    </div>
+
     <div id="game-container"></div>
 
     <div class="ui-layer">
-        <div id="login-screen" class="screen interactive">
+        <div id="login-screen" class="screen interactive" style="display:none;">
             <h2>Beck.IO</h2>
             <input type="text" id="room-code-input" placeholder="ENTER CODE" value="test1234">
             <button id="join-btn">MATCH JOIN</button>
         </div>
 
-        <div id="lobby-screen" class="screen interactive" style="display: none;">
+        <div id="lobby-screen" class="screen interactive" style="display:none;">
             <h2>LOBBY (<span id="room-id-title"></span>)</h2>
             <div class="lobby-info">
                 <p style="font-size:14px; color:#aaa;">MY ID: <span id="my-name" style="color:#00e676; font-weight:900;"></span></p>
@@ -76,14 +195,14 @@
                     </div>
                 </div>
             </div>
-            <button id="ready-btn" style="margin-top: 25px; background: #ffea00;">READY TO PLAY</button>
+            <button id="ready-btn" style="margin-top:25px; background:#ffea00;">READY TO PLAY</button>
         </div>
 
-        <div id="gameover-screen" class="screen interactive" style="display: none;">
+        <div id="gameover-screen" class="screen interactive" style="display:none;">
             <h2 id="match-result-title">MATCH OVER</h2>
-            <p id="match-result-sub" style="margin-bottom: 25px; color:#ccc; line-height:1.5;"></p>
-            <button id="restart-btn" style="background: #00e676; margin-bottom: 12px;">PLAY AGAIN</button>
-            <button id="quit-btn" style="background: #333; color:#fff;">QUIT</button>
+            <p id="match-result-sub" style="margin-bottom:25px; color:#ccc; line-height:1.5;"></p>
+            <button id="restart-btn" style="background:#00e676; margin-bottom:12px;">PLAY AGAIN</button>
+            <button id="quit-btn" style="background:#333; color:#fff;">QUIT</button>
         </div>
 
         <div id="hud">
@@ -92,15 +211,13 @@
                 <div class="score-board">
                     <span class="team-a-score">RED</span> <span id="score-red">0</span> : <span id="score-blue">0</span> <span class="team-b-score">BLUE</span>
                 </div>
-                <div class="status-box" style="color: #ff3547;">ENEMIES ALIVE: <span id="hud-enemies">?</span></div>
+                <div class="status-box" style="color:#ff3547;">ENEMIES: <span id="hud-enemies">?</span></div>
             </div>
-            
             <div class="crosshair-container">
                 <div class="crosshair-line ch-v"></div>
                 <div class="crosshair-line ch-h"></div>
                 <div class="crosshair-dot"></div>
             </div>
-
             <div class="bottom-hud">
                 <div>
                     <p style="font-size:12px; font-weight:bold; margin-bottom:4px; color:#aaa;">HEALTH BAR</p>
@@ -109,8 +226,8 @@
                         <div id="hud-hp-text" class="hp-text">100 / 100</div>
                     </div>
                 </div>
-                <div class="status-box" style="background: rgba(0,0,0,0.5); border:none; font-size: 13px; color: #bbb; text-align: right; line-height:1.4;">
-                    [W,A,S,D] Move &nbsp;&nbsp; [Space] Jump<br>[Mouse] Look Around &nbsp;&nbsp; [Left Click] Shoot Gun
+                <div id="kb-hint" class="status-box" style="background:rgba(0,0,0,0.5); border:none; font-size:13px; color:#bbb; text-align:right; line-height:1.4;">
+                    [W,A,S,D] Move &nbsp; [Space] Jump<br>[Mouse] Look &nbsp; [Click] Shoot
                 </div>
             </div>
         </div>
@@ -118,627 +235,636 @@
         <div id="center-message" class="center-msg"></div>
     </div>
 
+    <!-- 모바일 컨트롤 UI -->
+    <div id="mobile-controls">
+        <div id="joystick-zone">
+            <div id="joystick-base">
+                <div id="joystick-thumb"></div>
+            </div>
+        </div>
+        <div id="right-btn-zone">
+            <div class="m-btn" id="btn-fire">🔫 FIRE</div>
+            <div class="m-btn" id="btn-jump">⬆ JUMP</div>
+        </div>
+    </div>
+
+    <!-- 카메라 터치 영역 (게임 중에만 활성화) -->
+    <div id="cam-zone" style="display:none;"></div>
+
     <script>
-        window.addEventListener('load', () => {
-            let gameState = {
-                roomCode: '',
-                myPlayerId: 'P_' + Math.floor(1000 + Math.random()*9000),
-                players: {}, 
-                round: 1,
-                winsRed: 0,
-                winsBlue: 0,
-                isGaming: false,
-                myHp: 100
-            };
+    window.addEventListener('load', () => {
 
-            let scene, camera, renderer;
-            let mapObjects = []; 
-            let bullets = [];
-            let keys = {};
-            let lastTime = 0;
-            let container = document.getElementById('game-container');
+        // ── 스플래시 ──
+        setTimeout(() => {
+            const splash = document.getElementById('splash-screen');
+            splash.classList.add('fade-out');
+            setTimeout(() => {
+                splash.style.display = 'none';
+                document.getElementById('login-screen').style.display = 'block';
+            }, 650);
+        }, 2200);
 
-            const GRAVITY = 32.0;
-            const JUMP_FORCE = 12.0;
+        // ── 모바일 감지 ──
+        const isMobile = /Mobi|Android|iPhone|iPad|Touch/i.test(navigator.userAgent) || ('ontouchstart' in window);
 
-            const loginScreen = document.getElementById('login-screen');
-            const lobbyScreen = document.getElementById('lobby-screen');
-            const gameoverScreen = document.getElementById('gameover-screen');
-            const hud = document.getElementById('hud');
-            const centerMsg = document.getElementById('center-message');
+        if (isMobile) {
+            document.getElementById('mobile-controls').style.display = 'block';
+            document.getElementById('kb-hint').style.display = 'none';
+        }
 
-            document.getElementById('join-btn').addEventListener('click', () => {
-                const code = document.getElementById('room-code-input').value.trim();
-                if (code === 'test1234') {
-                    gameState.roomCode = code;
-                    initLobby();
-                } else {
-                    alert("방 코드로 'test1234'를 입력해주세요.");
-                }
-            });
+        // ── 게임 상태 ──
+        let gameState = {
+            roomCode: '',
+            myPlayerId: 'P_' + Math.floor(1000 + Math.random()*9000),
+            players: {},
+            round: 1,
+            winsRed: 0,
+            winsBlue: 0,
+            isGaming: false,
+            myHp: 100
+        };
 
-            function initLobby() {
-                loginScreen.style.display = 'none';
-                lobbyScreen.style.display = 'block';
-                document.getElementById('room-id-title').innerText = gameState.roomCode;
-                document.getElementById('my-name').innerText = gameState.myPlayerId;
+        let scene, camera, renderer;
+        let mapObjects = [];
+        let bullets = [];
+        let keys = {};
+        let lastTime = 0;
+        let container = document.getElementById('game-container');
 
-                gameState.players = {};
-                gameState.players[gameState.myPlayerId] = { name: "YOU", team: "", isAlive: true, x: 0, y: 0, z: 15, vy: 0, isGrounded: true, yaw: Math.PI, pitch: 0, mesh: null, parts: {} };
-                gameState.players['cpu_1'] = { name: "cpu_1", team: "", isAlive: true, x: -5, y: 0, z: -15, vy: 0, isGrounded: true, yaw: 0, pitch: 0, mesh: null, parts: {} };
-                gameState.players['cpu_2'] = { name: "cpu_2", team: "", isAlive: true, x: 5, y: 0, z: -20, vy: 0, isGrounded: true, yaw: 0, pitch: 0, mesh: null, parts: {} };
-                gameState.players['cpu_3'] = { name: "cpu_3", team: "", isAlive: true, x: -10, y: 0, z: 20, vy: 0, isGrounded: true, yaw: Math.PI, pitch: 0, mesh: null, parts: {} };
+        const GRAVITY = 32.0;
+        const JUMP_FORCE = 12.0;
 
-                let ids = Object.keys(gameState.players);
-                for (let i = ids.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [ids[i], ids[j]] = [ids[j], ids[i]];
-                }
-                ids.forEach((id, idx) => {
-                    gameState.players[id].team = (idx % 2 === 0) ? 'A' : 'B';
-                });
+        const loginScreen    = document.getElementById('login-screen');
+        const lobbyScreen    = document.getElementById('lobby-screen');
+        const gameoverScreen = document.getElementById('gameover-screen');
+        const hud            = document.getElementById('hud');
+        const centerMsg      = document.getElementById('center-message');
 
-                renderLobbyView();
+        // ── 조이스틱 상태 ──
+        let joystickDelta = { x: 0, y: 0 };
+        const MAX_R = 40;
+        const thumb       = document.getElementById('joystick-thumb');
+        const joystickZone = document.getElementById('joystick-zone');
+        const joystickBase = document.getElementById('joystick-base');
+
+        let joyTouchId = null;
+
+        joystickZone.addEventListener('touchstart', e => {
+            e.preventDefault();
+            if (joyTouchId !== null) return;
+            const t = e.changedTouches[0];
+            joyTouchId = t.identifier;
+        }, { passive: false });
+
+        joystickZone.addEventListener('touchmove', e => {
+            e.preventDefault();
+            for (let t of e.changedTouches) {
+                if (t.identifier !== joyTouchId) continue;
+                const rect = joystickBase.getBoundingClientRect();
+                let dx = t.clientX - (rect.left + rect.width/2);
+                let dy = t.clientY - (rect.top  + rect.height/2);
+                const dist = Math.hypot(dx, dy);
+                if (dist > MAX_R) { dx = dx/dist*MAX_R; dy = dy/dist*MAX_R; }
+                joystickDelta = { x: dx/MAX_R, y: dy/MAX_R };
+                thumb.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
             }
+        }, { passive: false });
 
-            function renderLobbyView() {
-                const listA = document.getElementById('team-A-list');
-                const listB = document.getElementById('team-B-list');
-                listA.innerHTML = ''; listB.innerHTML = '';
-
-                for (let id in gameState.players) {
-                    const p = gameState.players[id];
-                    const el = document.createElement('div');
-                    el.className = 'player-item';
-                    el.innerHTML = `<span>${p.name}</span><span style="color:#00e676;">[READY]</span>`;
-                    if (p.team === 'A') listA.appendChild(el);
-                    else listB.appendChild(el);
-                }
-            }
-
-            document.getElementById('ready-btn').addEventListener('click', () => {
-                showCenterMessage("ALL PLAYERS READY!\nSTARTING...", 1500);
-                setTimeout(() => {
-                    lobbyScreen.style.display = 'none';
-                    hud.style.display = 'flex';
-                    initThreeEngine();
-                }, 1500);
-            });
-
-            function showCenterMessage(txt, duration) {
-                centerMsg.innerText = txt;
-                centerMsg.style.display = 'block';
-                if(duration) setTimeout(() => { centerMsg.style.display = 'none'; }, duration);
-            }
-
-            function initThreeEngine() {
-                gameState.isGaming = true;
-                gameState.round = 1;
-                gameState.winsRed = 0;
-                gameState.winsBlue = 0;
-
-                scene = new THREE.Scene();
-                scene.background = new THREE.Color(0x0b0f19);
-                scene.fog = new THREE.FogExp2(0x0b0f19, 0.015);
-
-                camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
-
-                renderer = new THREE.WebGLRenderer({ antialias: true });
-                renderer.setSize(window.innerWidth, window.innerHeight);
-                container.appendChild(renderer.domElement);
-
-                const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-                scene.add(ambientLight);
-
-                const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
-                dirLight.position.set(30, 50, 20);
-                scene.add(dirLight);
-
-                const floorGeo = new THREE.BoxGeometry(80, 0.2, 80);
-                const floorMat = new THREE.MeshStandardMaterial({ color: 0x1f2d3d, roughness: 0.5 });
-                const floor = new THREE.Mesh(floorGeo, floorMat);
-                floor.position.y = -0.1;
-                scene.add(floor);
-
-                const grid = new THREE.GridHelper(80, 40, 0x00e676, 0x445566);
-                grid.position.y = 0.01;
-                scene.add(grid);
-
-                createMapStructures();
-                createCharacterMeshes();
-
-                resetRoundSettings();
-
-                window.addEventListener('keydown', e => { 
-                    keys[e.code] = true; 
-                    if(e.code === 'Space') {
-                        let my = gameState.players[gameState.myPlayerId];
-                        if(my && my.isAlive && my.isGrounded && gameState.myHp > 0) {
-                            my.vy = JUMP_FORCE;
-                            my.isGrounded = false;
-                        }
-                    }
-                });
-                window.addEventListener('keyup', e => { keys[e.code] = false; });
-                window.addEventListener('mousemove', onMouseMovement);
-                window.addEventListener('click', onGunFire);
-
-                window.addEventListener('resize', () => {
-                    camera.aspect = window.innerWidth / window.innerHeight;
-                    camera.updateProjectionMatrix();
-                    renderer.setSize(window.innerWidth, window.innerHeight);
-                });
-
-                container.addEventListener('click', () => {
-                    if(gameState.isGaming) container.requestPointerLock();
-                });
-
-                lastTime = performance.now();
-                requestAnimationFrame(renderLoop);
-            }
-
-            function createMapStructures() {
-                mapObjects = [];
-
-                const structures = [
-                    { x: -12, z: -5, sx: 4, sy: 8, sz: 4, c: 0x556688 },
-                    { x: 12, z: 5, sx: 4, sy: 8, sz: 4, c: 0x667777 },
-                    { x: -15, z: 15, sx: 5, sy: 6, sz: 5, c: 0x555555 },
-                    { x: 15, z: -15, sx: 5, sy: 6, sz: 5, c: 0x555555 }
-                ];
-
-                structures.forEach(s => {
-                    const geo = new THREE.BoxGeometry(s.sx, s.sy, s.sz);
-                    const mat = new THREE.MeshStandardMaterial({ color: s.c, roughness: 0.5 });
-                    const mesh = new THREE.Mesh(geo, mat);
-                    mesh.position.set(s.x, s.sy/2, s.z);
-                    scene.add(mesh);
-                    mapObjects.push({ x: s.x, z: s.z, hx: s.sx/2, hz: s.sz/2, sy: s.sy });
-                });
-
-                const platformHeight = 4;
-                const platformGeo = new THREE.BoxGeometry(6, 0.5, 6);
-                const platformMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
-                const platform = new THREE.Mesh(platformGeo, platformMat);
-                platform.position.set(0, platformHeight, -8);
-                scene.add(platform);
-
-                mapObjects.push({ x: 0, z: -8, hx: 3, hz: 3, topY: platformHeight, sy: 0.5 });
-            }
-
-            function createCharacterMeshes() {
-                for (let id in gameState.players) {
-                    let p = gameState.players[id];
-                    let isRed = p.team === 'A';
-                    let teamColor = isRed ? 0xff3547 : 0x007bff;
-
-                    const group = new THREE.Group();
-                    p.parts = {};
-
-                    const bodyGeo = new THREE.BoxGeometry(0.8, 1.2, 0.4);
-                    const bodyMat = new THREE.MeshStandardMaterial({ color: teamColor, roughness: 0.6 });
-                    const body = new THREE.Mesh(bodyGeo, bodyMat);
-                    body.position.y = 1.3;
-                    group.add(body);
-
-                    const headGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
-                    const headMat = new THREE.MeshStandardMaterial({ color: 0xffd1a4, roughness: 0.6 });
-                    const head = new THREE.Mesh(headGeo, headMat);
-                    head.position.y = 2.2;
-                    group.add(head);
-
-                    const armGeo = new THREE.BoxGeometry(0.2, 1.0, 0.25);
-                    const armMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
-
-                    const leftArmPivot = new THREE.Group();
-                    leftArmPivot.position.set(-0.5, 1.8, 0);
-                    const leftArm = new THREE.Mesh(armGeo, armMat);
-                    leftArm.position.y = -0.4;
-                    leftArmPivot.add(leftArm);
-                    group.add(leftArmPivot);
-                    p.parts.leftArm = leftArmPivot;
-
-                    const rightArmPivot = new THREE.Group();
-                    rightArmPivot.position.set(0.5, 1.8, 0);
-                    const rightArm = new THREE.Mesh(armGeo, armMat);
-                    rightArm.position.y = -0.4;
-                    rightArmPivot.add(rightArm);
-                    group.add(rightArmPivot);
-                    p.parts.rightArm = rightArmPivot;
-
-                    const legGeo = new THREE.BoxGeometry(0.24, 1.0, 0.3);
-                    const legMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-
-                    const leftLegPivot = new THREE.Group();
-                    leftLegPivot.position.set(-0.22, 0.9, 0);
-                    const leftLeg = new THREE.Mesh(legGeo, legMat);
-                    leftLeg.position.y = -0.4;
-                    leftLegPivot.add(leftLeg);
-                    group.add(leftLegPivot);
-                    p.parts.leftLeg = leftLegPivot;
-
-                    const rightLegPivot = new THREE.Group();
-                    rightLegPivot.position.set(0.22, 0.9, 0);
-                    const rightLeg = new THREE.Mesh(legGeo, legMat);
-                    rightLeg.position.y = -0.4;
-                    rightLegPivot.add(rightLeg);
-                    group.add(rightLegPivot);
-                    p.parts.rightLeg = rightLegPivot;
-
-                    scene.add(group);
-                    p.mesh = group;
+        joystickZone.addEventListener('touchend', e => {
+            e.preventDefault();
+            for (let t of e.changedTouches) {
+                if (t.identifier === joyTouchId) {
+                    joyTouchId = null;
+                    joystickDelta = { x: 0, y: 0 };
+                    thumb.style.transform = 'translate(-50%, -50%)';
                 }
             }
+        }, { passive: false });
 
-            function checkWallCollision(nextX, nextZ, currentY) {
-                const pr = 0.4; 
-                for(let i=0; i<mapObjects.length; i++) {
-                    let obj = mapObjects[i];
-                    if(obj.topY !== undefined && Math.abs(currentY - obj.topY) < 0.3) continue;
+        // ── 카메라 드래그 (오른쪽 영역) ──
+        const camZone = document.getElementById('cam-zone');
+        let camTouchId = null;
+        let camLastX = 0, camLastY = 0;
 
-                    if (nextX + pr > obj.x - obj.hx && nextX - pr < obj.x + obj.hx &&
-                        nextZ + pr > obj.z - obj.hz && nextZ - pr < obj.z + obj.hz) {
-                        return true;
-                    }
-                }
-                return false;
-            }
+        camZone.addEventListener('touchstart', e => {
+            e.preventDefault();
+            if (camTouchId !== null) return;
+            const t = e.changedTouches[0];
+            camTouchId = t.identifier;
+            camLastX = t.clientX;
+            camLastY = t.clientY;
+        }, { passive: false });
 
-            function checkBulletWallCollision(bx, by, bz) {
-                for(let i=0; i<mapObjects.length; i++) {
-                    let obj = mapObjects[i];
-                    let minY = (obj.topY !== undefined) ? obj.topY : 0;
-                    let maxY = (obj.topY !== undefined) ? obj.topY + obj.sy : obj.sy;
-
-                    if (bx >= obj.x - obj.hx && bx <= obj.x + obj.hx &&
-                        bz >= obj.z - obj.hz && bz <= obj.z + obj.hz &&
-                        by >= minY && by <= maxY) {
-                        return true;
-                    }
-                }
-                return false;
-            }
-
-            function getTerrainHeight(x, z) {
-                for(let i=0; i<mapObjects.length; i++) {
-                    let obj = mapObjects[i];
-                    if(obj.topY !== undefined) {
-                        if (x > obj.x - obj.hx && x < obj.x + obj.hx && z > obj.z - obj.hz && z < obj.z + obj.hz) {
-                            return obj.topY;
-                        }
-                    }
-                }
-                return 0; 
-            }
-
-            function resetRoundSettings() {
-                centerMsg.style.display = 'none';
-                gameState.myHp = 100;
-                
-                bullets.forEach(b => scene.remove(b.mesh));
-                bullets = [];
-                updateHud();
-
-                for(let id in gameState.players) {
-                    let p = gameState.players[id];
-                    p.isAlive = true;
-                    p.y = 0; p.vy = 0; p.isGrounded = true; // 봇 물리 상태 리셋 추가
-                    if(p.mesh) p.mesh.visible = true;
-
-                    if(p.team === 'A') {
-                        p.x = (Math.random()-0.5)*15; p.z = 25 + Math.random()*3; p.yaw = Math.PI;
-                    } else {
-                        p.x = (Math.random()-0.5)*15; p.z = -25 - Math.random()*3; p.yaw = 0;
-                    }
-                    p.pitch = 0;
-                    if(p.mesh) p.mesh.position.set(p.x, p.y, p.z);
-                }
-            }
-
-            function onMouseMovement(e) {
-                if (document.pointerLockElement !== container) return;
+        camZone.addEventListener('touchmove', e => {
+            e.preventDefault();
+            for (let t of e.changedTouches) {
+                if (t.identifier !== camTouchId) continue;
+                const dx = t.clientX - camLastX;
+                const dy = t.clientY - camLastY;
+                camLastX = t.clientX;
+                camLastY = t.clientY;
                 let my = gameState.players[gameState.myPlayerId];
-                if(my && gameState.myHp > 0) {
-                    my.yaw -= e.movementX * 0.003;
-                    my.pitch -= e.movementY * 0.003;
+                if (my && gameState.myHp > 0) {
+                    my.yaw   -= dx * 0.005;
+                    my.pitch -= dy * 0.005;
                     my.pitch = Math.max(-Math.PI/4, Math.min(Math.PI/4, my.pitch));
                 }
             }
+        }, { passive: false });
 
-            function onGunFire() {
-                if(!gameState.isGaming || gameState.myHp <= 0 || document.pointerLockElement !== container) return;
-                let my = gameState.players[gameState.myPlayerId];
+        camZone.addEventListener('touchend', e => {
+            e.preventDefault();
+            for (let t of e.changedTouches) {
+                if (t.identifier === camTouchId) camTouchId = null;
+            }
+        }, { passive: false });
 
-                let vx = Math.cos(my.pitch) * Math.sin(my.yaw);
-                let vy = Math.sin(my.pitch);
-                let vz = Math.cos(my.pitch) * Math.cos(my.yaw);
+        // ── FIRE 버튼 ──
+        document.getElementById('btn-fire').addEventListener('touchstart', e => {
+            e.preventDefault();
+            onGunFire();
+        }, { passive: false });
 
-                const bulletGeo = new THREE.SphereGeometry(0.18, 8, 8);
-                const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffea00 });
-                const bulletMesh = new THREE.Mesh(bulletGeo, bulletMat);
-                bulletMesh.position.set(my.x, my.y + 1.4, my.z);
-                scene.add(bulletMesh);
+        // ── JUMP 버튼 ──
+        document.getElementById('btn-jump').addEventListener('touchstart', e => {
+            e.preventDefault();
+            let my = gameState.players[gameState.myPlayerId];
+            if (my && my.isAlive && my.isGrounded && gameState.myHp > 0) {
+                my.vy = JUMP_FORCE;
+                my.isGrounded = false;
+            }
+        }, { passive: false });
 
-                bullets.push({ 
-                    mesh: bulletMesh,
-                    x: my.x, y: my.y + 1.4, z: my.z, 
-                    vx: vx*55, vy: vy*55, vz: vz*55, 
-                    owner: gameState.myPlayerId 
+        // ── 로그인 ──
+        document.getElementById('join-btn').addEventListener('click', () => {
+            const code = document.getElementById('room-code-input').value.trim();
+            if (code === 'test1234') {
+                gameState.roomCode = code;
+                initLobby();
+            } else {
+                alert("방 코드로 'test1234'를 입력해주세요.");
+            }
+        });
+
+        function initLobby() {
+            loginScreen.style.display = 'none';
+            lobbyScreen.style.display = 'block';
+            document.getElementById('room-id-title').innerText = gameState.roomCode;
+            document.getElementById('my-name').innerText = gameState.myPlayerId;
+
+            gameState.players = {};
+            gameState.players[gameState.myPlayerId] = { name: "YOU", team: "", isAlive: true, x: 0,   y: 0, z:  15, vy: 0, isGrounded: true, yaw: Math.PI, pitch: 0, mesh: null, parts: {} };
+            gameState.players['cpu_1']               = { name: "cpu_1", team: "", isAlive: true, x: -5,  y: 0, z: -15, vy: 0, isGrounded: true, yaw: 0, pitch: 0, mesh: null, parts: {} };
+            gameState.players['cpu_2']               = { name: "cpu_2", team: "", isAlive: true, x:  5,  y: 0, z: -20, vy: 0, isGrounded: true, yaw: 0, pitch: 0, mesh: null, parts: {} };
+            gameState.players['cpu_3']               = { name: "cpu_3", team: "", isAlive: true, x: -10, y: 0, z:  20, vy: 0, isGrounded: true, yaw: Math.PI, pitch: 0, mesh: null, parts: {} };
+
+            let ids = Object.keys(gameState.players);
+            for (let i = ids.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [ids[i], ids[j]] = [ids[j], ids[i]];
+            }
+            ids.forEach((id, idx) => { gameState.players[id].team = (idx % 2 === 0) ? 'A' : 'B'; });
+            renderLobbyView();
+        }
+
+        function renderLobbyView() {
+            const listA = document.getElementById('team-A-list');
+            const listB = document.getElementById('team-B-list');
+            listA.innerHTML = ''; listB.innerHTML = '';
+            for (let id in gameState.players) {
+                const p = gameState.players[id];
+                const el = document.createElement('div');
+                el.className = 'player-item';
+                el.innerHTML = `<span>${p.name}</span><span style="color:#00e676;">[READY]</span>`;
+                if (p.team === 'A') listA.appendChild(el);
+                else listB.appendChild(el);
+            }
+        }
+
+        document.getElementById('ready-btn').addEventListener('click', () => {
+            showCenterMessage("ALL PLAYERS READY!\nSTARTING...", 1500);
+            setTimeout(() => {
+                lobbyScreen.style.display = 'none';
+                hud.style.display = 'flex';
+                initThreeEngine();
+            }, 1500);
+        });
+
+        function showCenterMessage(txt, duration) {
+            centerMsg.innerText = txt;
+            centerMsg.style.display = 'block';
+            if (duration) setTimeout(() => { centerMsg.style.display = 'none'; }, duration);
+        }
+
+        function initThreeEngine() {
+            gameState.isGaming = true;
+            gameState.round    = 1;
+            gameState.winsRed  = 0;
+            gameState.winsBlue = 0;
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0b0f19);
+            scene.fog = new THREE.FogExp2(0x0b0f19, 0.015);
+
+            camera   = new THREE.PerspectiveCamera(65, window.innerWidth/window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+            dirLight.position.set(30, 50, 20);
+            scene.add(dirLight);
+
+            const floor = new THREE.Mesh(
+                new THREE.BoxGeometry(80, 0.2, 80),
+                new THREE.MeshStandardMaterial({ color: 0x1f2d3d, roughness: 0.5 })
+            );
+            floor.position.y = -0.1;
+            scene.add(floor);
+
+            const grid = new THREE.GridHelper(80, 40, 0x00e676, 0x445566);
+            grid.position.y = 0.01;
+            scene.add(grid);
+
+            createMapStructures();
+            createCharacterMeshes();
+            resetRoundSettings();
+
+            // 키보드
+            window.addEventListener('keydown', e => {
+                keys[e.code] = true;
+                if (e.code === 'Space') {
+                    let my = gameState.players[gameState.myPlayerId];
+                    if (my && my.isAlive && my.isGrounded && gameState.myHp > 0) {
+                        my.vy = JUMP_FORCE;
+                        my.isGrounded = false;
+                    }
+                }
+            });
+            window.addEventListener('keyup', e => { keys[e.code] = false; });
+            window.addEventListener('mousemove', onMouseMovement);
+            window.addEventListener('click', onGunFire);
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth/window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            if (!isMobile) {
+                container.addEventListener('click', () => {
+                    if (gameState.isGaming) container.requestPointerLock();
                 });
+            } else {
+                // 모바일: 카메라 존 활성화
+                document.getElementById('cam-zone').style.display = 'block';
             }
 
-            function processBotAI(dt) {
-                for (let id in gameState.players) {
-                    if (id === gameState.myPlayerId || !gameState.players[id].isAlive) continue;
-                    let bot = gameState.players[id];
+            lastTime = performance.now();
+            requestAnimationFrame(renderLoop);
+        }
 
-                    let targetFloor = getTerrainHeight(bot.x, bot.z);
-                    if (!bot.isGrounded) {
-                        bot.vy -= GRAVITY * dt;
-                        bot.y += bot.vy * dt;
-                        if (bot.y <= targetFloor) { bot.y = targetFloor; bot.vy = 0; bot.isGrounded = true; }
-                    } else {
-                        bot.y = targetFloor;
+        function createMapStructures() {
+            mapObjects = [];
+            [
+                { x: -12, z: -5,  sx: 4, sy: 8, sz: 4, c: 0x556688 },
+                { x:  12, z:  5,  sx: 4, sy: 8, sz: 4, c: 0x667777 },
+                { x: -15, z: 15,  sx: 5, sy: 6, sz: 5, c: 0x555555 },
+                { x:  15, z: -15, sx: 5, sy: 6, sz: 5, c: 0x555555 }
+            ].forEach(s => {
+                const mesh = new THREE.Mesh(
+                    new THREE.BoxGeometry(s.sx, s.sy, s.sz),
+                    new THREE.MeshStandardMaterial({ color: s.c, roughness: 0.5 })
+                );
+                mesh.position.set(s.x, s.sy/2, s.z);
+                scene.add(mesh);
+                mapObjects.push({ x: s.x, z: s.z, hx: s.sx/2, hz: s.sz/2, sy: s.sy });
+            });
+
+            const pf = new THREE.Mesh(
+                new THREE.BoxGeometry(6, 0.5, 6),
+                new THREE.MeshStandardMaterial({ color: 0x333333 })
+            );
+            pf.position.set(0, 4, -8);
+            scene.add(pf);
+            mapObjects.push({ x: 0, z: -8, hx: 3, hz: 3, topY: 4, sy: 0.5 });
+        }
+
+        function createCharacterMeshes() {
+            for (let id in gameState.players) {
+                let p = gameState.players[id];
+                let teamColor = p.team === 'A' ? 0xff3547 : 0x007bff;
+                const group = new THREE.Group();
+                p.parts = {};
+
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.4), new THREE.MeshStandardMaterial({ color: teamColor, roughness: 0.6 }));
+                body.position.y = 1.3; group.add(body);
+
+                const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), new THREE.MeshStandardMaterial({ color: 0xffd1a4, roughness: 0.6 }));
+                head.position.y = 2.2; group.add(head);
+
+                const armGeo = new THREE.BoxGeometry(0.2, 1.0, 0.25);
+                const armMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+
+                const lAP = new THREE.Group(); lAP.position.set(-0.5, 1.8, 0);
+                const lA = new THREE.Mesh(armGeo, armMat); lA.position.y = -0.4;
+                lAP.add(lA); group.add(lAP); p.parts.leftArm = lAP;
+
+                const rAP = new THREE.Group(); rAP.position.set(0.5, 1.8, 0);
+                const rA = new THREE.Mesh(armGeo, armMat); rA.position.y = -0.4;
+                rAP.add(rA); group.add(rAP); p.parts.rightArm = rAP;
+
+                const legGeo = new THREE.BoxGeometry(0.24, 1.0, 0.3);
+                const legMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+
+                const lLP = new THREE.Group(); lLP.position.set(-0.22, 0.9, 0);
+                const lL = new THREE.Mesh(legGeo, legMat); lL.position.y = -0.4;
+                lLP.add(lL); group.add(lLP); p.parts.leftLeg = lLP;
+
+                const rLP = new THREE.Group(); rLP.position.set(0.22, 0.9, 0);
+                const rL = new THREE.Mesh(legGeo, legMat); rL.position.y = -0.4;
+                rLP.add(rL); group.add(rLP); p.parts.rightLeg = rLP;
+
+                scene.add(group);
+                p.mesh = group;
+            }
+        }
+
+        function checkWallCollision(nx, nz, cy) {
+            const pr = 0.4;
+            for (let o of mapObjects) {
+                if (o.topY !== undefined && Math.abs(cy - o.topY) < 0.3) continue;
+                if (nx+pr > o.x-o.hx && nx-pr < o.x+o.hx && nz+pr > o.z-o.hz && nz-pr < o.z+o.hz) return true;
+            }
+            return false;
+        }
+
+        function checkBulletWallCollision(bx, by, bz) {
+            for (let o of mapObjects) {
+                let minY = o.topY !== undefined ? o.topY : 0;
+                let maxY = o.topY !== undefined ? o.topY + o.sy : o.sy;
+                if (bx >= o.x-o.hx && bx <= o.x+o.hx && bz >= o.z-o.hz && bz <= o.z+o.hz && by >= minY && by <= maxY) return true;
+            }
+            return false;
+        }
+
+        function getTerrainHeight(x, z) {
+            for (let o of mapObjects) {
+                if (o.topY !== undefined && x > o.x-o.hx && x < o.x+o.hx && z > o.z-o.hz && z < o.z+o.hz) return o.topY;
+            }
+            return 0;
+        }
+
+        function resetRoundSettings() {
+            centerMsg.style.display = 'none';
+            gameState.myHp = 100;
+            bullets.forEach(b => scene && scene.remove(b.mesh));
+            bullets = [];
+            updateHud();
+
+            for (let id in gameState.players) {
+                let p = gameState.players[id];
+                p.isAlive = true; p.y = 0; p.vy = 0; p.isGrounded = true;
+                if (p.mesh) p.mesh.visible = true;
+                if (p.team === 'A') { p.x = (Math.random()-0.5)*15; p.z =  25 + Math.random()*3; p.yaw = Math.PI; }
+                else                { p.x = (Math.random()-0.5)*15; p.z = -25 - Math.random()*3; p.yaw = 0; }
+                p.pitch = 0;
+                if (p.mesh) p.mesh.position.set(p.x, p.y, p.z);
+            }
+        }
+
+        function onMouseMovement(e) {
+            if (document.pointerLockElement !== container) return;
+            let my = gameState.players[gameState.myPlayerId];
+            if (my && gameState.myHp > 0) {
+                my.yaw   -= e.movementX * 0.003;
+                my.pitch -= e.movementY * 0.003;
+                my.pitch = Math.max(-Math.PI/4, Math.min(Math.PI/4, my.pitch));
+            }
+        }
+
+        function onGunFire() {
+            if (!gameState.isGaming || gameState.myHp <= 0) return;
+            if (!isMobile && document.pointerLockElement !== container) return;
+            let my = gameState.players[gameState.myPlayerId];
+            if (!my || !my.isAlive) return;
+
+            let vx = Math.cos(my.pitch) * Math.sin(my.yaw);
+            let vy = Math.sin(my.pitch);
+            let vz = Math.cos(my.pitch) * Math.cos(my.yaw);
+
+            const bMesh = new THREE.Mesh(
+                new THREE.SphereGeometry(0.18, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0xffea00 })
+            );
+            bMesh.position.set(my.x, my.y + 1.4, my.z);
+            scene.add(bMesh);
+            bullets.push({ mesh: bMesh, x: my.x, y: my.y+1.4, z: my.z, vx: vx*55, vy: vy*55, vz: vz*55, owner: gameState.myPlayerId });
+        }
+
+        function processBotAI(dt) {
+            for (let id in gameState.players) {
+                if (id === gameState.myPlayerId || !gameState.players[id].isAlive) continue;
+                let bot = gameState.players[id];
+
+                let tf = getTerrainHeight(bot.x, bot.z);
+                if (!bot.isGrounded) {
+                    bot.vy -= GRAVITY * dt; bot.y += bot.vy * dt;
+                    if (bot.y <= tf) { bot.y = tf; bot.vy = 0; bot.isGrounded = true; }
+                } else { bot.y = tf; }
+
+                let target = null, minDist = 9999;
+                for (let tid in gameState.players) {
+                    let en = gameState.players[tid];
+                    if (en.team !== bot.team && en.isAlive) {
+                        let d = Math.hypot(en.x-bot.x, en.z-bot.z);
+                        if (d < minDist) { minDist = d; target = en; }
                     }
+                }
 
-                    let target = null; let minDist = 9999;
-                    for (let targetId in gameState.players) {
-                        let enemy = gameState.players[targetId];
-                        if (enemy.team !== bot.team && enemy.isAlive) {
-                            let dist = Math.hypot(enemy.x - bot.x, enemy.z - bot.z);
-                            if (dist < minDist) { minDist = dist; target = enemy; }
-                        }
+                if (target) {
+                    bot.yaw = Math.atan2(target.x-bot.x, target.z-bot.z);
+                    if (minDist > 10) {
+                        let sx = Math.sin(bot.yaw)*5*dt, sz = Math.cos(bot.yaw)*5*dt;
+                        if (!checkWallCollision(bot.x+sx, bot.z+sz, bot.y)) { bot.x += sx; bot.z += sz; }
                     }
-
-                    if (target) {
-                        let dx = target.x - bot.x; let dz = target.z - bot.z;
-                        bot.yaw = Math.atan2(dx, dz);
-                        
-                        if (minDist > 10) {
-                            let stepX = Math.sin(bot.yaw) * 5 * dt;
-                            let stepZ = Math.cos(bot.yaw) * 5 * dt;
-
-                            if (!checkWallCollision(bot.x + stepX, bot.z + stepZ, bot.y)) {
-                                bot.x += stepX; bot.z += stepZ;
-                            }
-                        }
-
-                        if (Math.random() < 0.015) {
-                            let vx = Math.sin(bot.yaw); let vz = Math.cos(bot.yaw);
-                            const bulletGeo = new THREE.SphereGeometry(0.18, 8, 8);
-                            const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
-                            const bulletMesh = new THREE.Mesh(bulletGeo, bulletMat);
-                            bulletMesh.position.set(bot.x, bot.y + 1.4, bot.z);
-                            scene.add(bulletMesh);
-                            bullets.push({ mesh: bulletMesh, x: bot.x, y: bot.y + 1.4, z: bot.z, vx: vx*32, vy: 0, vz: vz*32, owner: id });
-                        }
+                    if (Math.random() < 0.015) {
+                        const bm = new THREE.Mesh(new THREE.SphereGeometry(0.18,8,8), new THREE.MeshBasicMaterial({ color: 0xffaa00 }));
+                        bm.position.set(bot.x, bot.y+1.4, bot.z);
+                        scene.add(bm);
+                        bullets.push({ mesh: bm, x: bot.x, y: bot.y+1.4, z: bot.z, vx: Math.sin(bot.yaw)*32, vy: 0, vz: Math.cos(bot.yaw)*32, owner: id });
                     }
-                    if(bot.mesh) {
-                        bot.mesh.position.set(bot.x, bot.y, bot.z);
-                        bot.mesh.rotation.y = bot.yaw;
+                }
 
-                        let angle = Math.sin(performance.now() * 0.01) * 0.5;
-                        if(bot.parts.leftLeg) bot.parts.leftLeg.rotation.x = angle;
-                        if(bot.parts.rightLeg) bot.parts.rightLeg.rotation.x = -angle;
-                    }
+                if (bot.mesh) {
+                    bot.mesh.position.set(bot.x, bot.y, bot.z);
+                    bot.mesh.rotation.y = bot.yaw;
+                    let a = Math.sin(performance.now()*0.01)*0.5;
+                    if (bot.parts.leftLeg)  bot.parts.leftLeg.rotation.x  =  a;
+                    if (bot.parts.rightLeg) bot.parts.rightLeg.rotation.x = -a;
                 }
             }
+        }
 
-            function renderLoop(now) {
-                if(!gameState.isGaming) return; // 여기서 정지되면 루프가 끊김
-                requestAnimationFrame(renderLoop);
+        function renderLoop(now) {
+            if (!gameState.isGaming) return;
+            requestAnimationFrame(renderLoop);
 
-                let dt = (now - lastTime) / 1000;
-                lastTime = now;
-                if(dt > 0.1) dt = 0.1;
+            let dt = Math.min((now - lastTime)/1000, 0.1);
+            lastTime = now;
 
-                let my = gameState.players[gameState.myPlayerId];
+            let my = gameState.players[gameState.myPlayerId];
+            if (my && gameState.myHp > 0) {
+                let speed = 13 * dt;
+                let fx = Math.sin(my.yaw), fz = Math.cos(my.yaw);
+                let rx = -Math.cos(my.yaw), rz = Math.sin(my.yaw);
+                let nx = my.x, nz = my.z, isMoving = false;
 
-                if (my && gameState.myHp > 0) {
-                    let moveSpeed = 13 * dt;
-                    let fx = Math.sin(my.yaw); let fz = Math.cos(my.yaw); 
-                    let rx = -Math.cos(my.yaw); let rz = Math.sin(my.yaw); 
+                // 키보드 + 조이스틱 합산
+                let jx = joystickDelta.x, jy = joystickDelta.y;
 
-                    let nextX = my.x; let nextZ = my.z;
-                    let isMoving = false;
+                if (keys['KeyW'] || jy < -0.2) { let f = keys['KeyW'] ? 1 : -jy; nx += fx*speed*f; nz += fz*speed*f; isMoving = true; }
+                if (keys['KeyS'] || jy >  0.2) { let f = keys['KeyS'] ? 1 :  jy; nx -= fx*speed*f; nz -= fz*speed*f; isMoving = true; }
+                if (keys['KeyA'] || jx < -0.2) { let f = keys['KeyA'] ? 1 : -jx; nx -= rx*speed*f; nz -= rz*speed*f; isMoving = true; }
+                if (keys['KeyD'] || jx >  0.2) { let f = keys['KeyD'] ? 1 :  jx; nx += rx*speed*f; nz += rz*speed*f; isMoving = true; }
 
-                    if (keys['KeyW']) { nextX += fx * moveSpeed; nextZ += fz * moveSpeed; isMoving = true; }
-                    if (keys['KeyS']) { nextX -= fx * moveSpeed; nextZ -= fz * moveSpeed; isMoving = true; }
-                    if (keys['KeyA']) { nextX -= rx * moveSpeed; nextZ -= rz * moveSpeed; isMoving = true; }
-                    if (keys['KeyD']) { nextX += rx * moveSpeed; nextZ += rz * moveSpeed; isMoving = true; }
+                nx = Math.max(-38, Math.min(38, nx));
+                nz = Math.max(-38, Math.min(38, nz));
+                if (!checkWallCollision(nx, nz, my.y)) { my.x = nx; my.z = nz; }
 
-                    nextX = Math.max(-38, Math.min(38, nextX));
-                    nextZ = Math.max(-38, Math.min(38, nextZ));
-
-                    if (!checkWallCollision(nextX, nextZ, my.y)) {
-                        my.x = nextX; my.z = nextZ;
-                    }
-
-                    let targetFloor = getTerrainHeight(my.x, my.z);
-                    
-                    if (!my.isGrounded) {
-                        my.vy -= GRAVITY * dt; 
-                        my.y += my.vy * dt;
-
-                        if (my.y <= targetFloor) {
-                            my.y = targetFloor;
-                            my.vy = 0;
-                            my.isGrounded = true;
-                        }
-                    } else {
-                        my.y = targetFloor;
-                        if (my.y > targetFloor + 0.05 || my.y < targetFloor - 0.05) {
-                            my.isGrounded = false;
-                        }
-                    }
-
-                    if (my.y < 0) {
-                        my.y = 0;
-                        my.vy = 0;
-                        my.isGrounded = true;
-                    }
-
-                    if(my.mesh) {
-                        my.mesh.position.set(my.x, my.y, my.z);
-                        my.mesh.rotation.y = my.yaw;
-
-                        if(isMoving && my.isGrounded) {
-                            let angle = Math.sin(now * 0.012) * 0.5;
-                            my.parts.leftLeg.rotation.x = angle;
-                            my.parts.rightLeg.rotation.x = -angle;
-                            my.parts.leftArm.rotation.x = -angle;
-                            my.parts.rightArm.rotation.x = angle;
-                        } else {
-                            my.parts.leftLeg.rotation.x = 0; my.parts.rightLeg.rotation.x = 0;
-                            my.parts.leftArm.rotation.x = 0; my.parts.rightArm.rotation.x = 0;
-                        }
-                    }
-                }
-
-                processBotAI(dt);
-
-                for (let i = bullets.length - 1; i >= 0; i--) {
-                    let b = bullets[i];
-                    let nextBx = b.x + b.vx * dt;
-                    let nextBy = b.y + b.vy * dt;
-                    let nextBz = b.z + b.vz * dt;
-
-                    if (checkBulletWallCollision(nextBx, nextBy, nextBz)) {
-                        scene.remove(b.mesh);
-                        bullets.splice(i, 1);
-                        continue;
-                    }
-
-                    b.x = nextBx; b.y = nextBy; b.z = nextBz;
-                    b.mesh.position.set(b.x, b.y, b.z);
-
-                    if (Math.abs(b.x) > 40 || Math.abs(b.z) > 40 || b.y < 0 || b.y > 25) { 
-                        scene.remove(b.mesh); bullets.splice(i, 1); continue; 
-                    }
-
-                    for (let id in gameState.players) {
-                        let p = gameState.players[id];
-                        if (!p.isAlive || b.owner === id || gameState.players[b.owner].team === p.team) continue;
-
-                        if (Math.abs(p.x - b.x) < 1.0 && Math.abs(p.z - b.z) < 1.0 && b.y > p.y && b.y < p.y + 2.5) {
-                            scene.remove(b.mesh);
-                            bullets.splice(i, 1);
-                            inflictDamage(id);
-                            break;
-                        }
-                    }
-                }
-
-                if (my) {
-                    let camDist = 5.5; 
-                    let targetCamX = my.x - Math.cos(my.pitch) * Math.sin(my.yaw) * camDist;
-                    let targetCamY = (my.y + 3.2) - Math.sin(my.pitch) * camDist; 
-                    let targetCamZ = my.z - Math.cos(my.pitch) * Math.cos(my.yaw) * camDist;
-
-                    camera.position.set(targetCamX, targetCamY, targetCamZ);
-                    camera.lookAt(my.x, my.y + 1.5, my.z);
-                }
-
-                renderer.render(scene, camera);
-            }
-
-            function inflictDamage(targetId) {
-                if (targetId === gameState.myPlayerId) {
-                    gameState.myHp -= 25; 
-                    updateHud();
-                    if (gameState.myHp <= 0) {
-                        gameState.players[targetId].isAlive = false;
-                        if(gameState.players[targetId].mesh) gameState.players[targetId].mesh.visible = false;
-                        showCenterMessage("YOU DIED!\nSPECTATING...", 2000);
-                        evaluateMatchRoundState();
-                    }
+                let tf = getTerrainHeight(my.x, my.z);
+                if (!my.isGrounded) {
+                    my.vy -= GRAVITY * dt; my.y += my.vy * dt;
+                    if (my.y <= tf) { my.y = tf; my.vy = 0; my.isGrounded = true; }
                 } else {
+                    my.y = tf;
+                    if (my.y > tf+0.05 || my.y < tf-0.05) my.isGrounded = false;
+                }
+                if (my.y < 0) { my.y = 0; my.vy = 0; my.isGrounded = true; }
+
+                if (my.mesh) {
+                    my.mesh.position.set(my.x, my.y, my.z);
+                    my.mesh.rotation.y = my.yaw;
+                    if (isMoving && my.isGrounded) {
+                        let a = Math.sin(now*0.012)*0.5;
+                        my.parts.leftLeg.rotation.x = a; my.parts.rightLeg.rotation.x = -a;
+                        my.parts.leftArm.rotation.x = -a; my.parts.rightArm.rotation.x = a;
+                    } else {
+                        my.parts.leftLeg.rotation.x = my.parts.rightLeg.rotation.x = 0;
+                        my.parts.leftArm.rotation.x = my.parts.rightArm.rotation.x = 0;
+                    }
+                }
+            }
+
+            processBotAI(dt);
+
+            for (let i = bullets.length-1; i >= 0; i--) {
+                let b = bullets[i];
+                let nbx = b.x + b.vx*dt, nby = b.y + b.vy*dt, nbz = b.z + b.vz*dt;
+                if (checkBulletWallCollision(nbx, nby, nbz)) { scene.remove(b.mesh); bullets.splice(i,1); continue; }
+                b.x = nbx; b.y = nby; b.z = nbz;
+                b.mesh.position.set(b.x, b.y, b.z);
+                if (Math.abs(b.x)>40 || Math.abs(b.z)>40 || b.y<0 || b.y>25) { scene.remove(b.mesh); bullets.splice(i,1); continue; }
+
+                for (let id in gameState.players) {
+                    let p = gameState.players[id];
+                    if (!p.isAlive || b.owner===id || gameState.players[b.owner].team===p.team) continue;
+                    if (Math.abs(p.x-b.x)<1.0 && Math.abs(p.z-b.z)<1.0 && b.y>p.y && b.y<p.y+2.5) {
+                        scene.remove(b.mesh); bullets.splice(i,1);
+                        inflictDamage(id); break;
+                    }
+                }
+            }
+
+            if (my) {
+                let cd = 5.5;
+                camera.position.set(
+                    my.x - Math.cos(my.pitch)*Math.sin(my.yaw)*cd,
+                    (my.y+3.2) - Math.sin(my.pitch)*cd,
+                    my.z - Math.cos(my.pitch)*Math.cos(my.yaw)*cd
+                );
+                camera.lookAt(my.x, my.y+1.5, my.z);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function inflictDamage(targetId) {
+            if (targetId === gameState.myPlayerId) {
+                gameState.myHp -= 25;
+                updateHud();
+                if (gameState.myHp <= 0) {
                     gameState.players[targetId].isAlive = false;
-                    if(gameState.players[targetId].mesh) gameState.players[targetId].mesh.visible = false;
+                    if (gameState.players[targetId].mesh) gameState.players[targetId].mesh.visible = false;
+                    showCenterMessage("YOU DIED!\nSPECTATING...", 2000);
                     evaluateMatchRoundState();
                 }
+            } else {
+                gameState.players[targetId].isAlive = false;
+                if (gameState.players[targetId].mesh) gameState.players[targetId].mesh.visible = false;
+                evaluateMatchRoundState();
             }
+        }
 
-            function evaluateMatchRoundState() {
-                let redAlive = 0; let blueAlive = 0;
-                for (let id in gameState.players) {
-                    if (gameState.players[id].isAlive) {
-                        if (gameState.players[id].team === 'A') redAlive++; else blueAlive++;
-                    }
-                }
-                
-                let myTeam = gameState.players[gameState.myPlayerId]?.team;
-                document.getElementById('hud-enemies').innerText = myTeam === 'A' ? blueAlive : redAlive;
-
-                if (redAlive === 0) settleRoundResult('B');
-                else if (blueAlive === 0) settleRoundResult('A');
-            }
-
-            function settleRoundResult(winnerTeam) {
-                if(winnerTeam === 'A') gameState.winsRed++; else gameState.winsBlue++;
-                updateHud();
-
-                if (gameState.winsRed === 2 || gameState.winsBlue === 2) {
-                    gameState.isGaming = false;
-                    document.exitPointerLock();
-                    hud.style.display = 'none';
-                    gameoverScreen.style.display = 'block';
-
-                    let finalWinner = gameState.winsRed === 2 ? "RED TEAM" : "BLUE TEAM";
-                    document.getElementById('match-result-title').innerText = `${finalWinner} VICTORY!`;
-                    document.getElementById('match-result-sub').innerText = `FINAL SCORE\nRED [ ${gameState.winsRed} ]  vs  [ ${gameState.winsBlue} ] BLUE`;
-                } else {
-                    gameState.round++;
-                    let winBanner = winnerTeam === 'A' ? "RED TEAM WIN ROUND!" : "BLUE TEAM WIN ROUND!";
-                    showCenterMessage(`${winBanner}\nNEXT ROUND STARTING...`, 2500);
-                    setTimeout(resetRoundSettings, 2500);
+        function evaluateMatchRoundState() {
+            let ra = 0, ba = 0;
+            for (let id in gameState.players) {
+                if (gameState.players[id].isAlive) {
+                    if (gameState.players[id].team==='A') ra++; else ba++;
                 }
             }
+            let mt = gameState.players[gameState.myPlayerId]?.team;
+            document.getElementById('hud-enemies').innerText = mt==='A' ? ba : ra;
+            if (ra===0) settleRoundResult('B');
+            else if (ba===0) settleRoundResult('A');
+        }
 
-            function updateHud() {
-                document.getElementById('hud-round').innerText = gameState.round;
-                document.getElementById('score-red').innerText = gameState.winsRed;
-                document.getElementById('score-blue').innerText = gameState.winsBlue;
-                
-                let hpPercent = Math.max(0, gameState.myHp);
-                document.getElementById('hp-fill').style.width = `${hpPercent}%`;
-                document.getElementById('hud-hp-text').innerText = `${hpPercent} / 100`;
-
-                let myTeam = gameState.players[gameState.myPlayerId]?.team;
-                let enemyCount = 0;
-                for(let id in gameState.players) {
-                    if(gameState.players[id].team !== myTeam && gameState.players[id].isAlive) enemyCount++;
-                }
-                document.getElementById('hud-enemies').innerText = enemyCount;
+        function settleRoundResult(w) {
+            if (w==='A') gameState.winsRed++; else gameState.winsBlue++;
+            updateHud();
+            if (gameState.winsRed===2 || gameState.winsBlue===2) {
+                gameState.isGaming = false;
+                document.exitPointerLock?.();
+                hud.style.display = 'none';
+                if (isMobile) { document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('cam-zone').style.display = 'none'; }
+                gameoverScreen.style.display = 'block';
+                let fw = gameState.winsRed===2 ? "RED TEAM" : "BLUE TEAM";
+                document.getElementById('match-result-title').innerText = `${fw} VICTORY!`;
+                document.getElementById('match-result-sub').innerText = `FINAL SCORE\nRED [ ${gameState.winsRed} ]  vs  [ ${gameState.winsBlue} ] BLUE`;
+            } else {
+                gameState.round++;
+                showCenterMessage(`${w==='A'?"RED":"BLUE"} TEAM WIN ROUND!\nNEXT ROUND STARTING...`, 2500);
+                setTimeout(resetRoundSettings, 2500);
             }
+        }
 
-            // 수정된 PLAY AGAIN 핸들러 로직
-            document.getElementById('restart-btn').addEventListener('click', () => {
-                gameoverScreen.style.display = 'none';
-                
-                // 1. 데이터 및 스코어 완전 초기화
-                gameState.round = 1;
-                gameState.winsRed = 0;
-                gameState.winsBlue = 0;
-                resetRoundSettings(); 
-                
-                // 2. 게임 활성화 플래그 On
-                gameState.isGaming = true;
-                hud.style.display = 'flex';
-                
-                for(let id in gameState.players) {
-                    if(gameState.players[id].mesh) gameState.players[id].mesh.visible = true;
-                }
+        function updateHud() {
+            document.getElementById('hud-round').innerText = gameState.round;
+            document.getElementById('score-red').innerText = gameState.winsRed;
+            document.getElementById('score-blue').innerText = gameState.winsBlue;
+            let hp = Math.max(0, gameState.myHp);
+            document.getElementById('hp-fill').style.width = `${hp}%`;
+            document.getElementById('hud-hp-text').innerText = `${hp} / 100`;
+            let mt = gameState.players[gameState.myPlayerId]?.team;
+            let ec = 0;
+            for (let id in gameState.players) { if (gameState.players[id].team!==mt && gameState.players[id].isAlive) ec++; }
+            document.getElementById('hud-enemies').innerText = ec;
+        }
 
-                // 3. 끊겼던 쓰리 제이에스 애니메이션 루프 재가동
-                lastTime = performance.now();
-                requestAnimationFrame(renderLoop);
-            });
-
-            document.getElementById('quit-btn').addEventListener('click', () => {
-                location.reload();
-            });
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            gameoverScreen.style.display = 'none';
+            gameState.round = 1; gameState.winsRed = 0; gameState.winsBlue = 0;
+            resetRoundSettings();
+            gameState.isGaming = true;
+            hud.style.display = 'flex';
+            if (isMobile) { document.getElementById('mobile-controls').style.display = 'block'; document.getElementById('cam-zone').style.display = 'block'; }
+            for (let id in gameState.players) { if (gameState.players[id].mesh) gameState.players[id].mesh.visible = true; }
+            lastTime = performance.now();
+            requestAnimationFrame(renderLoop);
         });
+
+        document.getElementById('quit-btn').addEventListener('click', () => { location.reload(); });
+    });
     </script>
 </body>
 </html>
