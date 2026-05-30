@@ -16,6 +16,7 @@
         .screen { background: rgba(15, 15, 15, 0.95); padding: 40px; border-radius: 8px; border: 3px solid #333; width: 450px; text-align: center; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
         .screen h2 { margin-bottom: 25px; font-size: 32px; font-weight: 900; letter-spacing: 1px; color: #fff; }
         .status-text { font-size: 16px; color: #ffea00; margin-bottom: 20px; line-height: 1.6; font-weight: bold; }
+        .debug-text { font-size: 12px; color: #888; margin-top: 15px; font-family: monospace; }
         
         button { width: 100%; padding: 15px; background: #00e676; border: none; color: #000; font-size: 18px; font-weight: 900; border-radius: 4px; cursor: pointer; transition: 0.15s; }
         button:hover { background: #00c853; transform: scale(1.02); }
@@ -50,8 +51,9 @@
     <div class="ui-layer">
         <div id="login-screen" class="screen interactive">
             <h2>RIVALS 3D</h2>
-            <p class="status-text" id="connection-status">시그널링 서버 연결 중...</p>
+            <p class="status-text" id="connection-status">중계 서버와 통신을 시작합니다...</p>
             <div id="action-area"></div>
+            <p class="debug-text" id="debug-log">내 ID: 연결 대기 중...</p>
         </div>
 
         <div id="gameover-screen" class="screen interactive" style="display: none;">
@@ -94,35 +96,28 @@
 
     <script>
         window.addEventListener('load', () => {
-            // ?1 매개변수로 플레이어 진영 구분
             const isHost = window.location.search.includes('1');
             
-            // 다른 사용자와 방이 중복되는 현상을 방지하기 위한 고유 키값 생성
-            const uniquePrefix = 'chidong-rivals-match-key-';
-            const myId = isHost ? uniquePrefix + 'p1' : uniquePrefix + 'p2';
-            const targetId = isHost ? uniquePrefix + 'p2' : uniquePrefix + 'p1';
+            // 중복 실행 시 ID 꼬임을 막기 위해 주소창 기반 고유 키 생성
+            const roomKey = 'py-club-match';
+            const myId = isHost ? roomKey + '-p1' : roomKey + '-p2';
+            const targetId = isHost ? roomKey + '-p2' : roomKey + '-p1';
 
             let peer = null;
             let conn = null;
 
             let gameState = {
                 isGaming: false,
-                myHp: 100,
-                myScore: 0,
-                targetScore: 0,
+                myHp: 100, myScore: 0, targetScore: 0,
                 me: { x: 0, y: 0, z: 15, vy: 0, yaw: Math.PI, pitch: 0, isGrounded: true },
                 target: { x: 0, y: 0, z: -15, yaw: 0, pitch: 0, isAlive: true, mesh: null, parts: {} }
             };
 
             let scene, camera, renderer;
-            let mapObjects = []; 
-            let bullets = [];
-            let keys = {};
-            let lastTime = 0;
+            let mapObjects = []; let bullets = []; let keys = {}; let lastTime = 0;
             let container = document.getElementById('game-container');
 
-            const GRAVITY = 32.0;
-            const JUMP_FORCE = 12.0;
+            const GRAVITY = 32.0; const JUMP_FORCE = 12.0;
 
             const loginScreen = document.getElementById('login-screen');
             const gameoverScreen = document.getElementById('gameover-screen');
@@ -130,36 +125,47 @@
             const centerMsg = document.getElementById('center-message');
             const statusText = document.getElementById('connection-status');
             const actionArea = document.getElementById('action-area');
+            const debugLog = document.getElementById('debug-log');
 
+            // Peer 인스턴스 생성
             peer = new Peer(myId);
 
-            peer.on('open', () => {
+            peer.on('open', (id) => {
+                debugLog.innerText = `내 고유네트워크 ID: ${id}`;
                 if (isHost) {
-                    statusText.innerHTML = "당신은 [1번 플레이어] 입니다.<br><br>2번 플레이어의 접속을 대기하고 있습니다...";
+                    statusText.innerHTML = "당신은 [1번 플레이어(방장)] 입니다.<br><br><span style='color:#00e676;'>네트워크 활성화 완료!</span><br>이제 다른 창(2번)을 켜서 접속하세요.";
                     document.getElementById('hud-role').innerText = "PLAYER 1 (RED)";
                 } else {
-                    statusText.innerHTML = "당신은 [2번 플레이어] 입니다.<br><br>아래 버튼을 클릭하여 즉시 대전에 입장하세요.";
+                    statusText.innerHTML = "당신은 [2번 플레이어] 입니다.<br><br>아래 버튼을 눌러 대전에 참여하세요.";
                     document.getElementById('hud-role').innerText = "PLAYER 2 (BLUE)";
                     
                     actionArea.innerHTML = `<button id="auto-connect-btn">대전에 참여하기</button>`;
                     document.getElementById('auto-connect-btn').addEventListener('click', () => {
-                        statusText.innerText = "1번 플레이어에게 P2P 채널 연결 중...";
+                        statusText.innerText = "1번 플레이어 연결 채널 개설 중...";
+                        // 1번 플레이어에게 연결 시도
                         conn = peer.connect(targetId);
                         setupConnection();
                     });
                 }
             });
 
+            // 1번 플레이어가 2번 플레이어 접속을 받았을 때 실행
             peer.on('connection', (connection) => {
                 conn = connection;
                 setupConnection();
             });
 
+            peer.on('error', (err) => {
+                statusText.innerHTML = `<span style='color:#ff3547;'>서버 연결 실패</span><br>기존 세션이 남아있을 수 있습니다.<br>잠시 후 새로고침 해보세요.`;
+                console.error(err);
+            });
+
             function setupConnection() {
+                // 핸드셰이크가 완벽히 성공했을 때 화면 전환
                 conn.on('open', () => {
                     loginScreen.style.display = 'none';
                     hud.style.display = 'flex';
-                    showCenterMessage("매칭에 성공했습니다!\n잠시 후 라운드가 시작됩니다.", 2000);
+                    showCenterMessage("매칭에 성공했습니다!\n라운드를 시작합니다.", 2000);
                     setTimeout(initThreeEngine, 2000);
                 });
 
@@ -357,9 +363,7 @@
                 let vy = Math.sin(gameState.me.pitch) * 55;
                 let vz = Math.cos(gameState.me.pitch) * Math.cos(gameState.me.yaw) * 55;
 
-                let bx = gameState.me.x;
-                let by = gameState.me.y + 1.4;
-                let bz = gameState.me.z;
+                let bx = gameState.me.x; let by = gameState.me.y + 1.4; let bz = gameState.me.z;
 
                 const bulletGeo = new THREE.SphereGeometry(0.18, 8, 8);
                 const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffea00 });
@@ -452,52 +456,4 @@
                 let targetCamZ = gameState.me.z - Math.cos(gameState.me.pitch) * Math.cos(gameState.me.yaw) * camDist;
 
                 camera.position.set(targetCamX, targetCamY, targetCamZ);
-                camera.lookAt(gameState.me.x, gameState.me.y + 1.5, gameState.me.z);
-
-                renderer.render(scene, camera);
-            }
-
-            function settleRound(isWin) {
-                if (isWin) {
-                    gameState.myScore++;
-                    showCenterMessage("ROUND VICTORY!", 3000);
-                } else {
-                    gameState.targetScore++;
-                    showCenterMessage("ROUND DEFEAT...", 3000);
-                    if(gameState.target.mesh) gameState.target.mesh.visible = false;
-                }
-                updateHud();
-
-                setTimeout(() => {
-                    hud.style.display = 'none';
-                    gameoverScreen.style.display = 'block';
-                    document.getElementById('match-result-title').innerText = isWin ? "YOU WIN" : "YOU LOSE";
-                    document.getElementById('match-result-sub').innerText = `SCORE\nYOU [ ${gameState.myScore} ]  vs  [ ${gameState.targetScore} ] ENEMY`;
-                }, 2000);
-            }
-
-            function resetGameNextRound() {
-                gameoverScreen.style.display = 'none';
-                hud.style.display = 'flex';
-                resetRoundSettings();
-                gameState.isGaming = true;
-                lastTime = performance.now();
-                requestAnimationFrame(renderLoop);
-            }
-
-            document.getElementById('restart-btn').addEventListener('click', () => {
-                conn.send({ type: 'restart' }); 
-                resetGameNextRound();
-            });
-
-            function updateHud() {
-                document.getElementById('score-my').innerText = gameState.myScore;
-                document.getElementById('score-target').innerText = gameState.targetScore;
-                let hpPercent = Math.max(0, gameState.myHp);
-                document.getElementById('hp-fill').style.width = `${hpPercent}%`;
-                document.getElementById('hud-hp-text').innerText = `${hpPercent} / 100`;
-            }
-        });
-    </script>
-</body>
-</html>
+                camera.lookAt(gameState.me.x, gameState.me.y + 1.5, gameState.me.z
